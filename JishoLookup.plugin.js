@@ -3,7 +3,7 @@
  * @author sharmavins23
  * @updateUrl https://raw.githubusercontent.com/sharmavins23/JishoLookup/JishoLookup.plugin.js
  * @authorLink https://github.com/sharmavins23
- * @source https://github.com/sharmavins23/JishoLookup/JishoLookup.plugin.js
+ * @source https://github.com/sharmavins23/JishoLookup
  */
 
 const config = {
@@ -76,7 +76,8 @@ module.exports = !globalThis.ZeresPluginLibrary
           stop() {}
       }
     : (([Plugin, Library]) => {
-          const customCSS = `.Jisho-Word {
+          const customCSS = `
+        .Jisho-Word {
             clear: left;
             color: var(--header-primary);
             font-size: 1.3em;
@@ -157,7 +158,9 @@ module.exports = !globalThis.ZeresPluginLibrary
               }
               getContextMenuItem() {
                   let selection = window.getSelection().toString().trim();
+                  console.log({ "SELECTION:": selection });
                   if (selection === "") {
+                      console.log("Selection was found to be empty.");
                       return;
                   }
 
@@ -165,13 +168,17 @@ module.exports = !globalThis.ZeresPluginLibrary
                       label: "Jisho",
                       type: "text",
                       action: () => {
+                          console.log("Received fetch call!");
                           fetch(
-                              `https://jisho.org/api/v1/search/words?keyword=${selection}`
+                              encodeURI(
+                                  `https://jisho.org/api/v1/search/words?keyword=${selection}`
+                              )
                           )
                               .then((data) => {
                                   return data.json();
                               })
                               .then((res) => {
+                                  console.log("Processed fetch call!");
                                   this.processDefinitions(word, res);
                               });
                       },
@@ -179,6 +186,8 @@ module.exports = !globalThis.ZeresPluginLibrary
                   return ContextMenuItem;
               }
               async processDefinitions(word, res) {
+                  console.log("Engaged processing of definitions!");
+
                   if (res?.data?.length === 0) {
                       BdApi.alert(
                           "No definitons found!",
