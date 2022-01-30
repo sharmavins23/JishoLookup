@@ -156,6 +156,7 @@ module.exports = !globalThis.ZeresPluginLibrary
                       }
                   );
               }
+
               getContextMenuItem() {
                   let selection = window.getSelection().toString().trim();
                   console.log({ "SELECTION:": selection });
@@ -168,19 +169,30 @@ module.exports = !globalThis.ZeresPluginLibrary
                       label: "Jisho",
                       type: "text",
                       action: () => {
-                          console.log("Received fetch call!");
+                          console.log("At fetch call!");
                           fetch(
                               encodeURI(
-                                  `https://jisho.org/api/v1/search/words?keyword=${selection}`
-                              )
+                                  `https://cors-anywhere.herokuapp.com/https://jisho.org/api/v1/search/words?keyword=${selection}`
+                              ),
+                              {
+                                  method: "GET",
+                                  headers: {
+                                      "content-type": "application/json",
+                                  },
+                              }
                           )
                               .then((data) => {
+                                  console.log("Fetch call hit data!");
+                                  console.log("Data:", data.data[0].slug);
+                                  this.processDefinitions(selection, data);
                                   return data.json();
                               })
                               .then((res) => {
-                                  console.log("Processed fetch call!");
-                                  this.processDefinitions(word, res);
-                              });
+                                  console.log("Fetch call hit res!");
+                                  console.log("Res:", res.text());
+                                  this.processDefinitions(selection, res);
+                              })
+                              .catch((err) => console.error(err));
                       },
                   });
                   return ContextMenuItem;
