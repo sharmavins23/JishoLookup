@@ -171,9 +171,7 @@ module.exports = !globalThis.ZeresPluginLibrary
                       action: () => {
                           console.log("At fetch call!");
                           fetch(
-                              encodeURI(
-                                  `https://cors-anywhere.herokuapp.com/https://jisho.org/api/v1/search/words?keyword=${selection}`
-                              ),
+                              `https://cors-anywhere.herokuapp.com/https://jisho.org/api/v1/search/words?keyword=${selection}`,
                               {
                                   method: "GET",
                                   headers: {
@@ -183,8 +181,6 @@ module.exports = !globalThis.ZeresPluginLibrary
                           )
                               .then((data) => {
                                   console.log("Fetch call hit data!");
-                                  console.log("Data:", data.data[0].slug);
-                                  this.processDefinitions(selection, data);
                                   return data.json();
                               })
                               .then((res) => {

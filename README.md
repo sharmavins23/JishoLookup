@@ -7,6 +7,23 @@ Heavily inspired from the
 [Urban Dictionary](https://github.com/TheGreenPig/BetterDiscordPlugins/tree/8502d0e14c13d95c8ce330f1b3581beb43fb891c/UrbanDictionary)
 plugin, made by [TheGreenPig](https://github.com/TheGreenPig).
 
+## Current State of the Project
+
+**As of right now, the project is NOT in a working state.**
+
+Currently, I'm using the CORS-Anywhere API workaround to work around the XSS
+protections on the site. The API is poorly formed and overcomplicated to use, so
+this simplifies things a bit.
+
+However, it also means that I get rate-limited consistently. While the posted
+rate limit on this application was 200/hr (or so I read), I ended up hitting
+that limit FAR faster than I had any right to. A redo of this workaround should
+prove to be valuable.
+
+The project is also having issues with getting a response body that is
+illegitimate, but this might be moreso due to the previous error than anything
+else.
+
 # License TL;DR
 
 This project is distributed under the MIT license. This is a paraphrasing of a
