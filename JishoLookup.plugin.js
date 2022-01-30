@@ -24,7 +24,7 @@ const config = {
     },
 };
 
-const customCSS = `.UrbanD-Word {
+const customCSS = `.Jisho-Word {
     clear: left;
     color: var(--header-primary);
     font-size: 1.3em;
@@ -32,38 +32,34 @@ const customCSS = `.UrbanD-Word {
     font-weight: bold;
     text-decoration: underline;
 }
-.UrbanD-Title {
+.Jisho-Title {
     font-weight: 600;
     color: var(--text-normal);
     font-size: 1.1em;
 }
-.UrbanD-Text {
+.Jisho-Text {
     color: var(--text-normal);
     padding-bottom: 15px;
 }
-.UrbanD-Image {
+.Jisho-Image {
     float: left;
     margin-bottom: 30;
 }
-.UrbanD-Info {
+.Jisho-Info {
     color: var(--text-normal);
     font-size: 0.9em;
     padding-top: 15px;
 }
-.UrbanD-Likes {
+.Jisho-PartOfSpeech {
     font-weight: bold;
 }
-.UrbanD-Author {
+.Jisho-JLPT {
     font-weight: bold;
 }
-.UrbanD-Date {
-    color: var(--text-muted);
-    font-size: 0.8em;
-}
-.UrbanD-Wrapper {
+.Jisho-Wrapper {
     -webkit-user-select: text;
 }
-.UrbanD-Definition {
+.Jisho-Definition {
     background-color: var(--background-secondary);
     border-radius: 15px;
     padding: 10px;
@@ -138,40 +134,9 @@ const PluginLibExists = ([Plugin, Library]) => {
             (m) => m?.default?.displayName === "SlateTextAreaContextMenu"
         );
 
-        let profanityArray = [];
-
-        const profanityOptions = [
-            {
-                name: "None",
-                desc: "No profanity filter.",
-                value: 0,
-            },
-            {
-                name: "Small",
-                desc: "About 450 words from https://raw.githubusercontent.com/web-mech/badwords/master/lib/lang.json",
-                value: 1,
-            },
-            {
-                name: "Large",
-                desc: "(Recommended) About 2800 words from https://raw.githubusercontent.com/zacanger/profane-words/master/words.json",
-                value: 2,
-            },
-            {
-                name: "External Api",
-                desc: `Uses the https://www.purgomalum.com/ api. Probably the best filter, but is not local and rather slow. This filter is not local, I do not have any control over this Api, use it carefully.`,
-                value: 3,
-            },
-        ];
-        return class UrbanDictionary extends Plugin {
+        return class JishoLookup extends Plugin {
             async onStart() {
-                this.settings = this.loadSettings({
-                    profanity: true,
-                    showAmount: 4,
-                    filter: 2,
-                });
-                profanityArray = await this.updateProfanityArray(
-                    this.settings.filter
-                );
+                this.settings = this.loadSettings({ maxDefinitions: 4 });
 
                 BdApi.injectCSS(config.info.name, customCSS);
 
@@ -198,15 +163,13 @@ const PluginLibExists = ([Plugin, Library]) => {
                 if (selection === "") {
                     return;
                 }
-                let word =
-                    selection.charAt(0).toUpperCase() + selection.slice(1);
 
                 let ContextMenuItem = DCM.buildMenuItem({
-                    label: "Urban Dictionary",
+                    label: "Jisho",
                     type: "text",
                     action: () => {
                         fetch(
-                            `https://api.urbandictionary.com/v0/define?term=${word.toLocaleLowerCase()}`
+                            `https://jisho.org/api/v1/search/words?keyword=${selection}`
                         )
                             .then((data) => {
                                 return data.json();
@@ -219,20 +182,9 @@ const PluginLibExists = ([Plugin, Library]) => {
                 return ContextMenuItem;
             }
             async processDefinitions(word, res) {
-                if (this.settings.filter !== 0) {
-                    let wordHasProfanity = await this.containsProfanity(word);
-                    if (wordHasProfanity) {
-                        BdApi.alert(
-                            "That's a bad word!",
-                            "Turn off your profanity filter to view this words definition!"
-                        );
-                        return;
-                    }
-                }
-
-                if (res?.list?.length === 0) {
+                if (res?.data?.length === 0) {
                     BdApi.alert(
-                        "No definiton found!",
+                        "No definitons found!",
                         React.createElement(
                             "div",
                             { class: "markdown-11q6EU paragraph-3Ejjt0" },
@@ -242,89 +194,82 @@ const PluginLibExists = ([Plugin, Library]) => {
                                 { style: { fontWeight: "bold" } },
                                 `"${word}"`
                             ),
-                            ` on Urban dictionary.`
+                            ` on Jisho.`
                         )
-                    ); //
+                    );
                     return;
                 }
 
                 let definitionElement = [];
-                res.list.sort(function (a, b) {
-                    return b.thumbs_up - a.thumbs_up;
-                });
                 for (
                     let i = 0;
-                    i < res.list.length && i < this.settings.showAmount;
+                    i < res.data.length && i < this.settings.maxDefinitions;
                     i++
                 ) {
-                    let definitionBlob = res.list[i];
+                    // Pick apart a specific definition
+                    let definitionBlob = res.data[i];
 
-                    let definition = definitionBlob.definition.replace(
-                        /[\[\]]/g,
-                        ""
-                    );
-                    let example = definitionBlob.example.replace(/[\[\]]/g, "");
-                    let likes = definitionBlob.thumbs_up.toString();
-                    let dislikes = definitionBlob.thumbs_down.toString();
-                    let author = definitionBlob.author;
-                    let date = new Date(
-                        definitionBlob.written_on
-                    ).toLocaleString();
-                    if (this.settings.filter !== 0) {
-                        definition = await this.filterText(definition);
-                        example = await this.filterText(example);
-                    }
+                    // Get all english definitions, splice together with comma
+                    let definition =
+                        definitionBlob.senses[0].english_definitions.join(", ");
 
+                    // Get JLPT level
+                    let jlptLevel = definitionBlob.jlpt[0].replace("jlpt-", "");
+
+                    // Get the readings
+                    let readingsList = "";
+                    definitionBlob.japanese.forEach((obj) => {
+                        // Only match readings that are of the original word
+                        if (obj.word == word) {
+                            readingsList.push(obj.reading);
+                        }
+                    });
+                    let readings = readingsList.join(", ");
+
+                    // Get the part of speech
+                    let partOfSpeech =
+                        definitionBlob.senses[0].parts_of_speech[0];
+
+                    // Create all react elements for this definition
                     definitionElement.push(
                         React.createElement(
                             "div",
-                            { class: "UrbanD-Definition" },
+                            { class: "Jisho-Definition" },
                             React.createElement(
                                 "div",
-                                { class: "UrbanD-Title" },
+                                { class: "Jisho-Title" },
                                 "Definition:"
                             ),
                             React.createElement(
                                 "div",
-                                { class: "UrbanD-Text" },
+                                { class: "Jisho-Text" },
                                 definition
                             ),
                             React.createElement(
                                 "div",
-                                { class: "UrbanD-Title" },
-                                "Example:"
+                                { class: "Jisho-Title" },
+                                "Reading:"
                             ),
                             React.createElement(
                                 "div",
-                                { class: "UrbanD-Text" },
-                                example
+                                { class: "Jisho-Text" },
+                                readings
                             ),
                             React.createElement(
                                 "div",
-                                { class: "UrbanD-Info" },
-                                "Likes: ",
+                                { class: "Jisho-Info" },
+                                "PoS: ",
                                 React.createElement(
                                     "span",
-                                    { class: "UrbanD-Likes" },
-                                    likes
+                                    { class: "Jisho-PartOfSpeech" },
+                                    partOfSpeech
                                 ),
-                                ", Dislikes: ",
+                                ", JLPT: ",
                                 React.createElement(
                                     "span",
-                                    { class: "UrbanD-Likes" },
-                                    dislikes
-                                ),
-                                ", written by ",
-                                React.createElement(
-                                    "span",
-                                    { class: "UrbanD-Author" },
-                                    author
+                                    { class: "Jisho-JLPT" },
+                                    jlptLevel
                                 )
-                            ),
-                            React.createElement(
-                                "div",
-                                { class: "UrbanD-Date" },
-                                date
                             )
                         )
                     );
@@ -334,28 +279,20 @@ const PluginLibExists = ([Plugin, Library]) => {
                     "",
                     React.createElement(
                         "div",
-                        { class: "UrbanD-Wrapper" },
+                        { class: "Jisho-Wrapper" },
+                        React.createElement("a", {
+                            href: "https://jisho.org/",
+                            target: "_blank",
+                        }),
                         React.createElement(
                             "a",
                             {
-                                href: "https://www.urbandictionary.com/",
-                                target: "_blank",
-                            },
-                            React.createElement("img", {
-                                class: "UrbanD-Image",
-                                src: "https://raw.githubusercontent.com/TheGreenPig/BetterDiscordPlugins/main/UrbanDictionary/UD_logo.svg",
-                                width: "100",
-                            })
-                        ),
-                        React.createElement(
-                            "a",
-                            {
-                                href: `https://www.urbandictionary.com/define.php?term=${word}`,
+                                href: `https://jisho.org/search/${word}`,
                                 target: "_blank",
                             },
                             React.createElement(
                                 "div",
-                                { class: "UrbanD-Word" },
+                                { class: "Jisho-Word" },
                                 word
                             )
                         ),
@@ -363,77 +300,7 @@ const PluginLibExists = ([Plugin, Library]) => {
                     )
                 );
             }
-            async containsProfanity(text) {
-                if (this.settings.filter === 3) {
-                    return await fetch(
-                        `https://www.purgomalum.com/service/containsprofanity?text=${text}`
-                    )
-                        .then((data) => {
-                            return data.json();
-                        })
-                        .then((res) => {
-                            return res;
-                        });
-                }
 
-                text = text.toLowerCase();
-                let wordArray = text.match(/\w+/gi);
-                let hasProfanity = false;
-                wordArray.forEach((word) => {
-                    if (profanityArray.includes(word)) {
-                        hasProfanity = true;
-                    }
-                });
-                return hasProfanity;
-            }
-            async filterText(text) {
-                if (this.settings.filter === 3) {
-                    return await fetch(
-                        `https://www.purgomalum.com/service/plain?text=${text}`
-                    )
-                        .then((data) => {
-                            return data.text();
-                        })
-                        .then((res) => {
-                            return res;
-                        });
-                }
-                let wordArray = text.match(/\w+/gi);
-                let newText = text;
-                wordArray.forEach((word) => {
-                    if (profanityArray.includes(word.toLowerCase())) {
-                        newText = newText.replace(
-                            word,
-                            "*".repeat(word.length)
-                        );
-                    }
-                });
-                return newText;
-            }
-            async updateProfanityArray(option) {
-                let url;
-                switch (option) {
-                    case 3:
-                    case 0:
-                        profanityArray = [];
-                        return;
-                    case 1:
-                        url =
-                            "https://raw.githubusercontent.com/web-mech/badwords/master/lib/lang.json";
-                        break;
-                    case 2:
-                        url =
-                            "https://raw.githubusercontent.com/zacanger/profane-words/master/words.json";
-                        break;
-                }
-                fetch(url)
-                    .then((data) => {
-                        return data.json();
-                    })
-                    .then((res) => {
-                        profanityArray = res.words ? res.words : res;
-                    });
-            }
             getSettingsPanel() {
                 return SettingPanel.build(
                     () => this.saveSettings(this.settings),
