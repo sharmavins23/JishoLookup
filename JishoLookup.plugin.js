@@ -304,24 +304,14 @@ const PluginLibExists = ([Plugin, Library]) => {
             getSettingsPanel() {
                 return SettingPanel.build(
                     () => this.saveSettings(this.settings),
-                    new RadioGroup(
-                        "Filter",
-                        `Choose if you want to turn on a profanity filter. The pop-up might take longer until it's displayed. Not all filters are perfect, you might still see text that is NSFW.`,
-                        this.settings.filter || 0,
-                        profanityOptions,
-                        (i) => {
-                            this.settings.filter = i;
-                            profanityArray = this.updateProfanityArray(i);
-                        }
-                    ),
                     new Slider(
                         "Amount of definitions",
                         "Defines how many definitions of the word you want to get displayed. More definitions will take longer to load (especially with the Profanity Filter turned on).",
                         1,
                         10,
-                        this.settings.showAmount,
+                        this.settings.maxDefinitions,
                         (i) => {
-                            this.settings.showAmount = i;
+                            this.settings.maxDefinitions = i;
                         },
                         {
                             markers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
