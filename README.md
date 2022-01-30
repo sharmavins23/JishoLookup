@@ -24,6 +24,9 @@ The project is also having issues with getting a response body that is
 illegitimate, but this might be moreso due to the previous error than anything
 else.
 
+Another possible venue would be a completely separate API, one that's preferably
+not as horrible to work with. However, I have yet to find such an API.
+
 # License TL;DR
 
 This project is distributed under the MIT license. This is a paraphrasing of a
